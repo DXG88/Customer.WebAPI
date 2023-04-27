@@ -26,14 +26,16 @@ namespace Customer.WebApi.Controllers
         [HttpGet("leaderboard")]
         public IActionResult GetCustomersByRank(int start, int end)
         {
-            var result = _scoreUpdateService.GetCustomersByRank(start, end);
+            var result = _scoreUpdateService.GetCustomersByRank(start, end)
+                .Select(c => new { CustomerId = c.Item1, Score = c.Item2, Rank = c.Item3 });
             return Ok(result);
         }
 
         [HttpGet("leaderboard/{customerid}")]
         public IActionResult GetCustomerById(long customerid, int high = 0, int low = 0)
         {
-            var result = _scoreUpdateService.GetCustomerById(customerid, high, low);
+            var result = _scoreUpdateService.GetCustomerById(customerid, high, low)
+                .Select(c => new { CustomerId = c.Item1, Score = c.Item2, Rank = c.Item3 });
 
             return Ok(result);
         }
