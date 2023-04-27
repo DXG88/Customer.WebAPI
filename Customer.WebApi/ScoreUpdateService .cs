@@ -5,7 +5,8 @@ using System.Collections.Concurrent;
 namespace Customer.WebApi
 {
     public class CustomerScore : IComparable<CustomerScore>
-    { public long CustomerId { get; set; }
+    { 
+        public long CustomerId { get; set; }
         public decimal Score { get; set; }
         public int Rank { get; set; }
 
