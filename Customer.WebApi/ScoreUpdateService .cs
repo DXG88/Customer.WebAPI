@@ -1,12 +1,26 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System.Collections;
 using System.Collections.Concurrent;
 
 namespace Customer.WebApi
 {
+    public class CustomerScore : IComparable<CustomerScore>
+    { public long CustomerId { get; set; }
+        public decimal Score { get; set; }
+        public int Rank { get; set; }
+
+        public int CompareTo(CustomerScore other)
+        {
+            int result = Score.CompareTo(other.Score);
+            if (result == 0)
+                result = CustomerId.CompareTo(other.CustomerId);
+            return result;
+        }
+    }
+
     public class ScoreUpdateService : BackgroundService
     {
-        private readonly List<KeyValuePair<long, decimal>> _sortedLeaderboard = new List<KeyValuePair<long, decimal>>();
+        private readonly SortedSet<CustomerScore> _sortedLeaderboard = new SortedSet<CustomerScore>();
 
         private readonly ConcurrentQueue<KeyValuePair<long, decimal>> _queue = new ConcurrentQueue<KeyValuePair<long, decimal>>();
        
@@ -17,16 +31,16 @@ namespace Customer.WebApi
 
         private void InitDataBase()
         {
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(76786448, 78));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(254814111, 65));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(53274324, 64));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(6144320, 32));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(7777777, 298));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(54814111, 301));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(7786448, 313));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(96144320, 298));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(16144320, 270));
-            _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(2000437, 239));
+            UpdateCustomerInfo(76786448, 78);
+            UpdateCustomerInfo(254814111, 65);
+            UpdateCustomerInfo(53274324, 64);
+            UpdateCustomerInfo(6144320, 32);
+            UpdateCustomerInfo(7777777, 298);
+            UpdateCustomerInfo(54814111, 301);
+            UpdateCustomerInfo(7786448, 313);
+            UpdateCustomerInfo(96144320, 298);
+            UpdateCustomerInfo(16144320, 270);
+            UpdateCustomerInfo(2000437, 239);
         }
 
         public void EnqueueScoreUpdate(long customerId, decimal score)
@@ -52,49 +66,42 @@ namespace Customer.WebApi
 
         private void UpdateCustomerInfo(long customerId, decimal score)
         {
-            int index = _sortedLeaderboard.FindIndex(x => x.Key == customerId);
-            if (index != -1)
+            var c = _sortedLeaderboard.FirstOrDefault(x => x.CustomerId == customerId);
+            if (c == null)
             {
-                _sortedLeaderboard[index] = new KeyValuePair<long, decimal>(customerId, score);
+                _sortedLeaderboard.Add(new CustomerScore { CustomerId = customerId, Score = score });
             }
             else
             {
-                _sortedLeaderboard.Add(new KeyValuePair<long, decimal>(customerId, score));
+                _sortedLeaderboard.Remove(c);
+                _sortedLeaderboard.Add(new CustomerScore { CustomerId = customerId, Score = c.Score + score });
             }
 
-            _sortedLeaderboard.Sort((x, y) =>
+            int rank = 1;
+            foreach (var item in _sortedLeaderboard)
             {
-                int result = y.Value.CompareTo(x.Value);
-                if (result == 0)
-                {
-                    result = x.Key.CompareTo(y.Key);
-                }
-                return result;
-            });
+                item.Rank = rank++;
+            }
         }
 
-        public IEnumerable<Tuple<long,decimal,int>> GetCustomersByRank(int start, int end)
+        public IEnumerable<CustomerScore> GetCustomersByRank(int start, int end)
         {
-             return _sortedLeaderboard.Skip(start - 1).Take(end - start + 1)
-                .Select((c, i) => Tuple.Create(c.Key,c.Value, start + i));
+            return _sortedLeaderboard.TakeWhile(x => x.Rank >= start && x.Rank <= end);
         }
 
-        public IEnumerable<Tuple<long, decimal, int>> GetCustomerById(long customerId, int high, int low)
+        public IEnumerable<CustomerScore> GetCustomerById(long customerId, int high, int low)
         {
-            var sortedLeaderboard = _sortedLeaderboard;
-            var customerIndex = sortedLeaderboard.FindIndex(entry => entry.Key == customerId);
-
-            if (customerIndex == -1)
-                return Array.Empty<Tuple<long, decimal, int>>();
-
-            var startIndex = Math.Max(0, customerIndex - high);
-            var endIndex = Math.Min(sortedLeaderboard.Count - 1, customerIndex + low);
-
-            var result = sortedLeaderboard.Skip(startIndex)
-                .Take(endIndex - startIndex + 1)
-                .Select((c, i) => Tuple.Create(c.Key, c.Value, startIndex + i));
-
-            return result;
+            var target = _sortedLeaderboard.FirstOrDefault(x => x.CustomerId == customerId);
+            if (target != null)
+            {
+                var before = _sortedLeaderboard.TakeWhile(x => x.CompareTo(target) < 0).Reverse().Take(high);
+                var after = _sortedLeaderboard.SkipWhile(x => x.CompareTo(target) <= 0).Take(low);
+                return before.Reverse().Concat(new[] { target }).Concat(after);
+            }
+            else
+            {
+                return Array.Empty<CustomerScore>();
+            }
         }
     }
 }
