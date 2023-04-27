@@ -8,7 +8,6 @@ namespace Customer.WebApi
     { 
         public long CustomerId { get; set; }
         public decimal Score { get; set; }
-        public int Rank { get; set; }
 
         public int CompareTo(CustomerScore other)
         {
@@ -77,31 +76,29 @@ namespace Customer.WebApi
                 _sortedLeaderboard.Remove(c);
                 _sortedLeaderboard.Add(new CustomerScore { CustomerId = customerId, Score = c.Score + score });
             }
-
-            int rank = 1;
-            foreach (var item in _sortedLeaderboard)
-            {
-                item.Rank = rank++;
-            }
         }
 
-        public IEnumerable<CustomerScore> GetCustomersByRank(int start, int end)
+        public IEnumerable<Tuple<long, decimal, int>> GetCustomersByRank(int start, int end)
         {
-            return _sortedLeaderboard.TakeWhile(x => x.Rank >= start && x.Rank <= end);
+            start = Math.Max(1, start);
+            end = Math.Min(_sortedLeaderboard.Count, end);
+
+            return _sortedLeaderboard.Skip(start - 1).Take(end - start + 1)
+                .Select((c, i) => Tuple.Create(c.CustomerId, c.Score, start + i));
         }
 
-        public IEnumerable<CustomerScore> GetCustomerById(long customerId, int high, int low)
+        public IEnumerable<Tuple<long, decimal, int>> GetCustomerById(long customerId, int high, int low)
         {
             var target = _sortedLeaderboard.FirstOrDefault(x => x.CustomerId == customerId);
             if (target != null)
             {
-                var before = _sortedLeaderboard.TakeWhile(x => x.CompareTo(target) < 0).Reverse().Take(high);
-                var after = _sortedLeaderboard.SkipWhile(x => x.CompareTo(target) <= 0).Take(low);
-                return before.Reverse().Concat(new[] { target }).Concat(after);
+                int index = _sortedLeaderboard.TakeWhile(x => x.CompareTo(target) < 0).Count();
+                
+                return GetCustomersByRank(index - high + 1, index + low + 1);
             }
             else
             {
-                return Array.Empty<CustomerScore>();
+                return Array.Empty<Tuple<long, decimal, int>>();
             }
         }
     }
