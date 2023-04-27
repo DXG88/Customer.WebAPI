@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Concurrent;
 
@@ -26,16 +26,14 @@ namespace Customer.WebApi.Controllers
         [HttpGet("leaderboard")]
         public IActionResult GetCustomersByRank(int start, int end)
         {
-            var result = _scoreUpdateService.GetCustomersByRank(start, end)
-                .Select(c => new { CustomerId = c.Item1, Score = c.Item2, Rank = c.Item3 });
+            var result = _scoreUpdateService.GetCustomersByRank(start, end);
             return Ok(result);
         }
 
         [HttpGet("leaderboard/{customerid}")]
         public IActionResult GetCustomerById(long customerid, int high = 0, int low = 0)
         {
-            var result = _scoreUpdateService.GetCustomerById(customerid, high, low)
-                .Select(c => new { CustomerId = c.Item1, Score = c.Item2, Rank = c.Item3 });
+            var result = _scoreUpdateService.GetCustomerById(customerid, high, low);
 
             return Ok(result);
         }
