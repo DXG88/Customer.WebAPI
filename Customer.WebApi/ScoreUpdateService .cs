@@ -40,7 +40,7 @@ namespace Customer.WebApi
     {
         private readonly SortedSet<CustomerScore> _sortedLeaderboard = new SortedSet<CustomerScore>();
 
-        private readonly ConcurrentQueue<KeyValuePair<long, decimal>> _queue = new ConcurrentQueue<KeyValuePair<long, decimal>>();
+        private readonly ConcurrentQueue<CustomerScore> _queue = new ConcurrentQueue<CustomerScore>();
        
         public ScoreUpdateService()
         {
@@ -63,18 +63,16 @@ namespace Customer.WebApi
 
         public void EnqueueScoreUpdate(long customerId, decimal score)
         {
-            _queue.Enqueue(new KeyValuePair<long, decimal>(customerId, score));
+            _queue.Enqueue(new CustomerScore { CustomerId = customerId, Score = score });
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                while (_queue.TryDequeue(out var entry))
+                while (_queue.TryDequeue(out var c))
                 {
-                    var (customerId, score) = entry;
-
-                    UpdateCustomerInfo(customerId,score);
+                    UpdateCustomerInfo(c.CustomerId, c.Score);
                     
                 }
 
