@@ -1,9 +1,27 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Customer.WebApi
 {
+    public static class SortedSetExtensions
+    {
+        public static CustomerScore? Find(this SortedSet<CustomerScore> set, long customerId)
+        {
+            foreach (var score in set)
+            {
+                if (score.CustomerId == customerId)
+                {
+                    return score;
+                }
+            }
+
+            return null;
+        }
+    }
+
+
     public class CustomerScore : IComparable<CustomerScore>
     { 
         public long CustomerId { get; set; }
@@ -66,7 +84,7 @@ namespace Customer.WebApi
 
         private void UpdateCustomerInfo(long customerId, decimal score)
         {
-            var c = _sortedLeaderboard.FirstOrDefault(x => x.CustomerId == customerId);
+            var c = _sortedLeaderboard.Find(customerId);
             if (c == null)
             {
                 _sortedLeaderboard.Add(new CustomerScore { CustomerId = customerId, Score = score });
@@ -89,7 +107,7 @@ namespace Customer.WebApi
 
         public IEnumerable<Tuple<long, decimal, int>> GetCustomerById(long customerId, int high, int low)
         {
-            var target = _sortedLeaderboard.FirstOrDefault(x => x.CustomerId == customerId);
+            var target = _sortedLeaderboard.Find(customerId);
             if (target != null)
             {
                 int index = _sortedLeaderboard.TakeWhile(x => x.CompareTo(target) < 0).Count();
